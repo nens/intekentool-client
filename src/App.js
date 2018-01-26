@@ -1,5 +1,5 @@
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
-import area from "@turf/area";
+// import area from "@turf/area";
 import bboxPolygon from "@turf/bbox-polygon";
 import difference from "@turf/difference";
 import DrawControl from "react-mapbox-gl-draw";
@@ -545,10 +545,18 @@ class App extends Component {
     const { sessions, currentSessionId } = this.state;
     sessions.forEach(session => {
       if (session.id === currentSessionId) {
-        shpwrite.download({
-          type: "FeatureCollection",
-          features: session.features
-        });
+        shpwrite.download(
+          {
+            type: "FeatureCollection",
+            features: session.features
+          },
+          {
+            folder: "klimaatatlas",
+            types: {
+              polygon: session.title || session.id
+            }
+          }
+        );
       }
     });
   }
@@ -569,27 +577,27 @@ class App extends Component {
         f => f.id === currentGeometryId
       )[0];
 
-      const squareMeters = feature ? area(feature) : 0;
-      const sqm =
-        squareMeters > 50000
-          ? <span>
-              {Math.floor(squareMeters / 1000)} km<sup>2</sup>
-            </span>
-          : <span>
-              {Math.floor(squareMeters)} m<sup>2</sup>
-            </span>;
+      // const squareMeters = feature ? area(feature) : 0;
+      // const sqm =
+      //   squareMeters > 50000
+      //     ? <span>
+      //         {Math.floor(squareMeters / 1000)} km<sup>2</sup>
+      //       </span>
+      //     : <span>
+      //         {Math.floor(squareMeters)} m<sup>2</sup>
+      //       </span>;
 
       const featureKeys = feature ? Object.keys(feature.properties) : [];
 
       const attributeTable = (
         <table className={styles.AttributeTable}>
           <tbody>
-            <tr className={styles.TableRow}>
-              <td>Oppervlak</td>
-              <td>
-                {sqm}
-              </td>
-            </tr>
+            {/*<tr className={styles.TableRow}>*/}
+            {/*<td>Oppervlak</td>*/}
+            {/*<td>*/}
+            {/*{sqm}*/}
+            {/*</td>*/}
+            {/*</tr>*/}
             {featureKeys.map((fk, i) => {
               return (
                 <tr key={i} className={styles.TableRow}>
@@ -688,6 +696,7 @@ class App extends Component {
           />
 
           <ScaleControl />
+
           <ZoomControl />
 
           <DrawControl
@@ -698,6 +707,181 @@ class App extends Component {
               combine_features: false,
               uncombine_features: false
             }}
+            styles={[
+              // ACTIVE (being drawn)
+              // line stroke
+              {
+                id: "gl-draw-line",
+                type: "line",
+                filter: [
+                  "all",
+                  ["==", "$type", "LineString"],
+                  ["!=", "mode", "static"]
+                ],
+                layout: {
+                  "line-cap": "round",
+                  "line-join": "round"
+                },
+                paint: {
+                  "line-color": "#FFF",
+                  "line-dasharray": [0.2, 2],
+                  "line-width": 2
+                }
+              },
+              // polygon fill
+              {
+                id: "gl-draw-polygon-fill",
+                type: "fill",
+                filter: [
+                  "all",
+                  ["==", "$type", "Polygon"],
+                  ["!=", "mode", "static"]
+                ],
+                paint: {
+                  "fill-color": "#FFF",
+                  "fill-outline-color": "#FFF",
+                  "fill-opacity": 0.1
+                }
+              },
+              // polygon outline stroke
+              // This doesn't style the first edge of the polygon, which uses the line stroke styling instead
+              {
+                id: "gl-draw-polygon-stroke-active",
+                type: "line",
+                filter: [
+                  "all",
+                  ["==", "$type", "Polygon"],
+                  ["!=", "mode", "static"]
+                ],
+                layout: {
+                  "line-cap": "round",
+                  "line-join": "round"
+                },
+                paint: {
+                  "line-color": "#FFF",
+                  "line-dasharray": [0.2, 2],
+                  "line-width": 2
+                }
+              },
+              // vertex point halos
+              {
+                id: "gl-draw-polygon-and-line-vertex-halo-active",
+                type: "circle",
+                filter: [
+                  "all",
+                  ["==", "active", "true"],
+                  ["==", "meta", "vertex"],
+                  ["==", "$type", "Point"],
+                  ["!=", "mode", "static"]
+                ],
+                paint: {
+                  "circle-radius": 8,
+                  "circle-color": "#FFF"
+                }
+              },
+              // vertex points
+              {
+                id: "gl-draw-polygon-and-line-vertex-active",
+                type: "circle",
+                filter: [
+                  "all",
+                  ["==", "active", "true"],
+                  ["==", "meta", "vertex"],
+                  ["==", "$type", "Point"],
+                  ["!=", "mode", "static"]
+                ],
+                paint: {
+                  "circle-radius": 6,
+                  "circle-color": "#0099FF"
+                }
+              },
+
+              // inactive vertex point halos
+              {
+                id: "gl-draw-polygon-and-line-vertex-halo-inactive",
+                type: "circle",
+                filter: [
+                  "all",
+                  ["==", "active", "false"],
+                  ["==", "meta", "vertex"],
+                  ["==", "$type", "Point"],
+                  ["!=", "mode", "static"]
+                ],
+                paint: {
+                  "circle-radius": 5,
+                  "circle-color": "#FFF"
+                }
+              },
+              // vertex points
+              {
+                id: "gl-draw-polygon-and-line-vertex-inactive",
+                type: "circle",
+                filter: [
+                  "all",
+                  ["==", "active", "false"],
+                  ["==", "meta", "vertex"],
+                  ["==", "$type", "Point"],
+                  ["!=", "mode", "static"]
+                ],
+                paint: {
+                  "circle-radius": 4,
+                  "circle-color": "#0099FF"
+                }
+              },
+
+              // INACTIVE (static, already drawn)
+              // line stroke
+              {
+                id: "gl-draw-line-static",
+                type: "line",
+                filter: [
+                  "all",
+                  ["==", "$type", "LineString"],
+                  ["==", "mode", "static"]
+                ],
+                layout: {
+                  "line-cap": "round",
+                  "line-join": "round"
+                },
+                paint: {
+                  "line-color": "#000",
+                  "line-width": 3
+                }
+              },
+              // polygon fill
+              {
+                id: "gl-draw-polygon-fill-static",
+                type: "fill",
+                filter: [
+                  "all",
+                  ["==", "$type", "Polygon"],
+                  ["==", "mode", "static"]
+                ],
+                paint: {
+                  "fill-color": "#000",
+                  "fill-outline-color": "#000",
+                  "fill-opacity": 0.1
+                }
+              },
+              // polygon outline
+              {
+                id: "gl-draw-polygon-stroke-static",
+                type: "line",
+                filter: [
+                  "all",
+                  ["==", "$type", "Polygon"],
+                  ["==", "mode", "static"]
+                ],
+                layout: {
+                  "line-cap": "round",
+                  "line-join": "round"
+                },
+                paint: {
+                  "line-color": "#000",
+                  "line-width": 3
+                }
+              }
+            ]}
             ref={drawControl => {
               this.drawControl = drawControl;
             }}
