@@ -126,10 +126,26 @@ class App extends Component {
     super();
     this.state = {
       currentGeometryId: null,
-      currentSessionId: null,
+      currentSessionId: 2,
       foregroundLayerId: 0,
       ready: false,
-      sessions: [],
+      sessions: [
+        {
+          features: [],
+          id: 0,
+          title: "Knelpunten"
+        },
+        {
+          features: [],
+          id: 1,
+          title: "Kansen"
+        },
+        {
+          features: [],
+          id: 2,
+          title: "Oplossingen"
+        }
+      ],
       center: [4.851, 52.645],
       zoom: [11]
     };
@@ -144,6 +160,9 @@ class App extends Component {
     this.handleRenameSession = this.handleRenameSession.bind(this);
     this.handleNewAttribute = this.handleNewAttribute.bind(this);
     this.handleRemoveAttribute = this.handleRemoveAttribute.bind(this);
+    this.handleUpdateAttributeValueForKeyInFeature = this.handleUpdateAttributeValueForKeyInFeature.bind(
+      this
+    );
     this.redrawCurrentSession = this.redrawCurrentSession.bind(this);
   }
 
@@ -247,6 +266,20 @@ class App extends Component {
         map.on("draw.create", e => {
           const { sessions, currentSessionId } = this.state;
 
+          const currentSession = sessions.filter(
+            s => s.id === currentSessionId
+          )[0];
+
+          e.features.map(f => {
+            f.properties = {
+              Nr: currentSession.features.length + 1,
+              Thema: "",
+              Omschrijving: "",
+              Prioriteit: ""
+            };
+            return f;
+          });
+
           if (currentSessionId === null) {
             // Not in a session, create a new session object
             const newRandomId = Date.now();
@@ -280,24 +313,29 @@ class App extends Component {
             }
           }
         });
+
         map.on("draw.update", e => {
           const { sessions, currentSessionId } = this.state;
           const updatedFeature = e.features[0];
+
           const currentSession = sessions.filter(
             s => s.id === currentSessionId
           )[0];
-          const updated = currentSession.features.map(f => {
+
+          const updated = currentSession.features.filter(f => {
             if (f.id === updatedFeature.id) {
-              f = updatedFeature;
+              return f;
             }
             return f;
           });
+
           const updatedSessions = sessions.map(s => {
             if (s.id === currentSessionId) {
               s.features = updated;
             }
             return s;
           });
+
           this.setState(
             {
               sessions: updatedSessions
@@ -305,6 +343,7 @@ class App extends Component {
             () => this.persistState()
           );
         });
+
         map.on("draw.selectionchange", e => {
           if (e.features.length > 0) {
             this.setState(
@@ -322,6 +361,7 @@ class App extends Component {
             );
           }
         });
+
         map.on("draw.delete", e => {
           const { sessions, currentSessionId } = this.state;
           const featureToDelete = e.features[0];
@@ -541,6 +581,33 @@ class App extends Component {
     );
   }
 
+  handleUpdateAttributeValueForKeyInFeature(fk, feature) {
+    if (fk === "Nr") {
+      alert("Dit nummer wordt automatisch toegewezen op basis van volgorde");
+      return false;
+    }
+    const { sessions, currentSessionId } = this.state;
+
+    const newValue = prompt(
+      `Wat is de waarde voor het attribuut ${fk.toLowerCase()}?`,
+      ""
+    );
+
+    this.setState({
+      sessions: sessions.map(s => {
+        if (s.id === currentSessionId) {
+          s.features.map(f => {
+            if (f.id === feature.id) {
+              f.properties[fk] = newValue;
+            }
+            return f;
+          });
+        }
+        return s;
+      })
+    });
+  }
+
   handlePublish() {
     const { sessions, currentSessionId } = this.state;
     sessions.forEach(session => {
@@ -571,7 +638,7 @@ class App extends Component {
     } = this.state;
 
     let inspectorContent = <div>Niets geselecteerd</div>;
-    if (currentGeometryId && currentSessionId) {
+    if (currentGeometryId && currentSessionId !== null) {
       const session = sessions.filter(s => s.id === currentSessionId)[0];
       const feature = session.features.filter(
         f => f.id === currentGeometryId
@@ -601,10 +668,17 @@ class App extends Component {
             {featureKeys.map((fk, i) => {
               return (
                 <tr key={i} className={styles.TableRow}>
-                  <td>
+                  <td width="20%">
                     {fk}
                   </td>
-                  <td>
+                  <td
+                    style={{ cursor: "pointer" }}
+                    onDoubleClick={() =>
+                      this.handleUpdateAttributeValueForKeyInFeature(
+                        fk,
+                        feature
+                      )}
+                  >
                     {feature.properties[fk]}
                   </td>
                 </tr>
@@ -616,7 +690,10 @@ class App extends Component {
 
       inspectorContent = (
         <div className={styles.InspectorContent}>
-          <div className={styles.AddRemoveAttributes}>
+          <div
+            className={styles.AddRemoveAttributes}
+            style={{ display: "none" }}
+          >
             <div onClick={this.handleNewAttribute}>+</div>
             <div onClick={this.handleRemoveAttribute}>-</div>
           </div>
@@ -940,15 +1017,26 @@ class App extends Component {
                 {inspectorContent}
               </div>
               <div className={styles.AddRemoveSessions}>
-                <div onClick={this.handleNewSession}>+</div>
-                <div onClick={this.handleRemoveSession}>-</div>
+                <div className={styles.AddRemoveSessionsTitle}>Lagen</div>
+                <div
+                  onClick={this.handleNewSession}
+                  style={{ display: "none" }}
+                >
+                  +
+                </div>
+                <div
+                  onClick={this.handleRemoveSession}
+                  style={{ display: "none" }}
+                >
+                  -
+                </div>
               </div>
               <div className={styles.Sessions}>
                 {sessions.slice().reverse().map((s, i) => {
                   return (
                     <div
                       key={i}
-                      onDoubleClick={() => this.handleRenameSession(s.id)}
+                      // onDoubleClick={() => this.handleRenameSession(s.id)}
                       onClick={() => this.handleLoadSession(s.id)}
                       className={`${s.id === currentSessionId
                         ? styles.ActiveSession
