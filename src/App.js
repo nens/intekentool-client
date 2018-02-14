@@ -1,11 +1,10 @@
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
-// import area from "@turf/area";
 import bboxPolygon from "@turf/bbox-polygon";
+import centroid from "@turf/centroid";
 import difference from "@turf/difference";
 import DrawControl from "react-mapbox-gl-draw";
 import React, { Component } from "react";
 import ReactMapboxGl, {
-  Source,
   Layer,
   GeoJSONLayer,
   ScaleControl,
@@ -14,119 +13,33 @@ import ReactMapboxGl, {
 import shpwrite from "shp-write";
 import styles from "./App.css";
 
+const REDRAW_TIMEOUT = 2500;
+
 const Map = ReactMapboxGl({
   renderWorldCopies: false,
   accessToken:
     "pk.eyJ1IjoibmVsZW5zY2h1dXJtYW5zIiwiYSI6ImhkXzhTdXcifQ.3k2-KAxQdyl5bILh_FioCw"
 });
 
-const hhnk_layers = [
-  {
-    id: "kwetsbaarheid_panden",
-    label: "Kwetsbaarheid panden",
-    // "http://cors-anywhere.herokuapp.com/https://geoserver9.lizard.net/geoserver/hhnk/wms?service=WMS&request=GetMap&layers=hhnk_kwetsbaarheid_panden&styles=&format=image%2Fpng&transparent=true&version=1.1.1&url=https%3A%2F%2Fgeoserver9.lizard.net%2Fgeoserver%2Fhhnk%2Fwms&SRS=EPSG%3A3857&HEIGHT=256&WIDTH=256&height=256&width=256&srs=EPSG%3A3857&bbox={bbox-epsg-3857}"
-    wmsUrl:
-      "https://geoserver9.lizard.net/geoserver/hhnk/wms?service=WMS&request=GetMap&layers=hhnk_kwetsbaarheid_panden&styles=&format=image%2Fpng&transparent=true&version=1.1.1&url=https%3A%2F%2Fgeoserver9.lizard.net%2Fgeoserver%2Fhhnk%2Fwms&SRS=EPSG%3A3857&HEIGHT=256&WIDTH=256&height=256&width=256&srs=EPSG%3A3857&bbox={bbox-epsg-3857}"
-  },
-  {
-    id: "kwetsbare_objecten",
-    label: "Kwetsbare objecten",
-    // "http://cors-anywhere.herokuapp.com/https://geoserver9.lizard.net/geoserver/hhnk/wms?service=WMS&request=GetMap&layers=hhnk_kwetsbare_objecten&styles=&format=image%2Fpng&transparent=true&version=1.1.1&url=https%3A%2F%2Fgeoserver9.lizard.net%2Fgeoserver%2Fhhnk%2Fwms&SRS=EPSG%3A3857&HEIGHT=256&WIDTH=256&height=256&width=256&srs=EPSG%3A3857&bbox={bbox-epsg-3857}"
-    wmsUrl:
-      "https://geoserver9.lizard.net/geoserver/hhnk/wms?service=WMS&request=GetMap&layers=hhnk_kwetsbare_objecten&styles=&format=image%2Fpng&transparent=true&version=1.1.1&url=https%3A%2F%2Fgeoserver9.lizard.net%2Fgeoserver%2Fhhnk%2Fwms&SRS=EPSG%3A3857&HEIGHT=256&WIDTH=256&height=256&width=256&srs=EPSG%3A3857&bbox={bbox-epsg-3857}"
-  },
-  {
-    id: "begaanbaarheid_wegen",
-    label: "Begaanbaarheid wegen",
-    // "http://cors-anywhere.herokuapp.com/https://geoserver9.lizard.net/geoserver/hhnk/wms?service=WMS&request=GetMap&layers=hhnk_begaanbaarheid&styles=&format=image%2Fpng&transparent=true&version=1.1.1&url=https%3A%2F%2Fgeoserver9.lizard.net%2Fgeoserver%2Fhhnk%2Fwms&SRS=EPSG%3A3857&HEIGHT=256&WIDTH=256&height=256&width=256&srs=EPSG%3A3857&bbox={bbox-epsg-3857}"
-    wmsUrl:
-      "https://geoserver9.lizard.net/geoserver/hhnk/wms?service=WMS&request=GetMap&layers=hhnk_begaanbaarheid&styles=&format=image%2Fpng&transparent=true&version=1.1.1&url=https%3A%2F%2Fgeoserver9.lizard.net%2Fgeoserver%2Fhhnk%2Fwms&SRS=EPSG%3A3857&HEIGHT=256&WIDTH=256&height=256&width=256&srs=EPSG%3A3857&bbox={bbox-epsg-3857}"
-  },
-  {
-    id: "stijging_grondwaterstanden",
-    label: "Stijging grondwaterstanden",
-    wmsUrl:
-      "http://cors-anywhere.herokuapp.com/https://maps1.klimaatatlas.net/geoserver/hhnk/wms?service=WMS&request=GetMap&layers=s0188_nwm_mediaan_peilgebied_verschil_ghg_huidig_2050&styles=&format=image%2Fpng&transparent=true&version=1.1.1&url=https%3A%2F%2Fmaps1.klimaatatlas.net%2Fgeoserver%2Fhhnk%2Fwms&SRS=EPSG%3A28992&HEIGHT=256&WIDTH=256&height=256&width=256&srs=EPSG%3A3857&bbox={bbox-epsg-3857}"
-  }
-];
-
-const sources = hhnk_layers.map((source, i) => {
-  return (
-    <Source
-      key={`sourceKey_${i}`}
-      id={`wmslayer_${i}`}
-      tileJsonSource={{
-        type: "raster",
-        tiles: [source.wmsUrl],
-        tileSize: 256
-      }}
-    />
-  );
-});
-const layers = hhnk_layers.map((layer, i) => {
-  return (
-    <Layer
-      key={`layerKey_${i}`}
-      type="raster"
-      id={`wms_${i}`}
-      sourceId={`wmslayer_${i}`}
-    />
-  );
-});
-
-const mask = {
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      properties: {},
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [4.76806640625, 53.204387484117866],
-            [4.6417236328125, 53.075877572693564],
-            [4.5758056640625, 52.95194755829188],
-            [4.537353515625, 52.6946965109301],
-            [4.501647949218749, 52.49448734004674],
-            [4.40277099609375, 52.30176096373671],
-            [4.60052490234375, 52.26983815857981],
-            [4.89715576171875, 52.2378923494213],
-            [5.130615234375, 52.26311463698559],
-            [5.3778076171875, 52.3202320760974],
-            [5.27069091796875, 52.46103016351592],
-            [5.40802001953125, 52.50284765940397],
-            [5.47393798828125, 52.57468079766565],
-            [5.3668212890625, 52.688037606833454],
-            [5.284423828125, 52.777847147478944],
-            [5.13885498046875, 52.771200932880234],
-            [5.1580810546875, 52.85752259337269],
-            [5.07843017578125, 52.94201777829491],
-            [4.97955322265625, 53.03130376554964],
-            [4.95758056640625, 53.148417609197466],
-            [4.954833984374999, 53.199451902831555],
-            [4.76806640625, 53.204387484117866]
-          ]
-        ]
-      }
-    }
-  ]
-};
+// Bounds are intentionally globe-covering
 const bounds = [-163.125, 82.76537263027352, 192.3046875, -50.06419173665909];
+
 function polyMask(mask, bounds) {
-  var bboxPoly = bboxPolygon(bounds);
+  const bboxPoly = bboxPolygon(bounds);
   return difference(bboxPoly, mask);
 }
-const masker = polyMask(mask.features[0], bounds);
 
 let drawControl = null;
 
 class App extends Component {
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
+
+    const center = centroid(this.props.data.maskFeature).geometry.coordinates || [5.2677, 52.1858];
     this.state = {
       currentGeometryId: null,
       currentSessionId: 2,
+      isDrawing: false,
       foregroundLayerId: 0,
       ready: false,
       sessions: [
@@ -146,8 +59,8 @@ class App extends Component {
           title: "Oplossingen"
         }
       ],
-      center: [4.851, 52.645],
-      zoom: [11]
+      center,
+      zoom: [9]
     };
     this.handleDelete = this.handleDelete.bind(this);
     this.handleDrawPolygon = this.handleDrawPolygon.bind(this);
@@ -164,28 +77,12 @@ class App extends Component {
       this
     );
     this.redrawCurrentSession = this.redrawCurrentSession.bind(this);
+    this.handleHashChange = this.handleHashChange.bind(this);
   }
 
   componentDidMount() {
     document.addEventListener("keyup", this.handleKeyUp, false);
-
-    // MARK: This is really not ok and should be done via an API
-    // fetch("http://cors-anywhere.herokuapp.com/https://hhnk.klimaatatlas.net/")
-    //   .then(result => {
-    //     return result.text();
-    //   })
-    //   .then(htmldata => {
-    //     const el = document.createElement("html");
-    //     el.innerHTML = htmldata;
-    //     const scriptElement = el.childNodes[0].children[8]; // <script/> with data config object
-    //     const configJson = scriptElement.textContent;
-    //     const local = document.createElement("script");
-    //     local.innerHTML = configJson;
-    //     document.head.appendChild(local);
-    //     this.setState({
-    //       config: window.data
-    //     });
-    //   });
+    window.addEventListener("hashchange", this.handleHashChange, false);
   }
   componentWillUnmount() {
     document.removeEventListener("keydown", this.handleKeyUp, false);
@@ -195,25 +92,12 @@ class App extends Component {
     localStorage.setItem("intekentool:state", JSON.stringify(this.state));
   }
 
+  handleHashChange(e) {
+    // console.log('ID', window.location.hash.split("#")[1]);
+    return;
+  }
+
   handleKeyUp(e) {
-    if (e.keyCode === 84) {
-      // t
-      if (this.state.ready) {
-        this.handleDrawPolygon();
-      }
-    }
-    if (e.keyCode === 27) {
-      // esc
-      this.handleDelete();
-    }
-    if (e.keyCode === 78) {
-      // n
-      this.handleNewSession();
-    }
-    if (e.keyCode === 80) {
-      // p
-      this.handlePublish();
-    }
     if (e.keyCode === 49) {
       // 1
       this.setState(
@@ -250,6 +134,15 @@ class App extends Component {
         () => this.persistState()
       );
     }
+    if (e.keyCode === 5) {
+      // 5
+      this.setState(
+        {
+          foregroundLayerId: 4
+        },
+        () => this.persistState()
+      );
+    }
   }
 
   handleMapInit() {
@@ -258,17 +151,20 @@ class App extends Component {
         ready: true
       },
       () => {
-        // This sets the global drawControl variable to be  the actual drawControl,
+        // This sets the global drawControl variable to be the actual drawControl,
         // so its available in every function of this component...
         drawControl = this.drawControl.draw;
 
         const map = this.mapElement.state.map;
         map.on("draw.create", e => {
           const { sessions, currentSessionId } = this.state;
-
           const currentSession = sessions.filter(
             s => s.id === currentSessionId
           )[0];
+
+          this.setState({
+            isDrawing: false
+          });
 
           e.features.map(f => {
             f.properties = {
@@ -318,15 +214,12 @@ class App extends Component {
           const { sessions, currentSessionId } = this.state;
           const updatedFeature = e.features[0];
 
-          const currentSession = sessions.filter(
-            s => s.id === currentSessionId
-          )[0];
-
-          const updated = currentSession.features.filter(f => {
-            if (f.id === updatedFeature.id) {
-              return f;
+          const currentSession = sessions.find(s => s.id === currentSessionId);
+          const updated = currentSession.features.map(feature => {
+            if (feature.id === updatedFeature.id) {
+              return updatedFeature;
             }
-            return f;
+            return feature;
           });
 
           const updatedSessions = sessions.map(s => {
@@ -365,9 +258,7 @@ class App extends Component {
         map.on("draw.delete", e => {
           const { sessions, currentSessionId } = this.state;
           const featureToDelete = e.features[0];
-          const currentSession = sessions.filter(
-            s => s.id === currentSessionId
-          )[0];
+          const currentSession = sessions.find(s => s.id === currentSessionId);
           const featuresWithoutDeleted = currentSession.features.filter(f => {
             if (f.id === featureToDelete.id) {
               return false;
@@ -397,7 +288,7 @@ class App extends Component {
             setTimeout(() => {
               // MARK: This is needed to restore the drawing state in MapboxGL
               this.redrawCurrentSession();
-            }, 2500);
+            }, REDRAW_TIMEOUT);
           });
         }
       }
@@ -406,7 +297,6 @@ class App extends Component {
 
   handleNewAttribute(e) {
     const { sessions, currentSessionId, currentGeometryId } = this.state;
-
     const newAttributeName = prompt("Wat is de naam van het attribuut?", "");
     const newAttributeValue = prompt(
       `Wat is de waarde van het attribuut ${newAttributeName}?`,
@@ -468,6 +358,9 @@ class App extends Component {
   updateAttributeValueByKey(key) {}
 
   handleDrawPolygon(e) {
+    this.setState({
+      isDrawing: true
+    });
     drawControl.changeMode(drawControl.modes["DRAW_POLYGON"]);
   }
 
@@ -498,7 +391,7 @@ class App extends Component {
   redrawCurrentSession() {
     const { sessions, currentSessionId } = this.state;
     drawControl.deleteAll();
-    const session = sessions.filter(s => s.id === currentSessionId)[0];
+    const session = sessions.find(s => s.id === currentSessionId);
     if (session) {
       session.features.forEach(feature => drawControl.add(feature));
     }
@@ -581,17 +474,35 @@ class App extends Component {
     );
   }
 
-  handleUpdateAttributeValueForKeyInFeature(fk, feature) {
-    if (fk === "Nr") {
-      alert("Dit nummer wordt automatisch toegewezen op basis van volgorde");
-      return false;
-    }
+  handleUpdateAttributeValueForKeyInFeature(fk, feature, oldValue) {
     const { sessions, currentSessionId } = this.state;
+    let newValue;
 
-    const newValue = prompt(
-      `Wat is de waarde voor het attribuut ${fk.toLowerCase()}?`,
-      ""
-    );
+    if (fk === "Thema") {
+      newValue = prompt(
+        "Kies uit de volgende thema's: Hevige neerslag, Langdurige neerslag, Hitte, Droogte, Dijkdoorbraken of Overig",
+        oldValue || ""
+      );
+    }
+    else if (fk === "Nr") {
+      newValue = prompt(
+        "Geef een volgnummer op",
+        oldValue || ""
+      );
+    }
+    else if (fk === "Omschrijving") {
+      newValue = prompt(
+        "Geef een korte omschrijving van knelpunt, kans of oplossing (max. 100 tekens)",
+        oldValue || ""
+      );
+    }
+    else if (fk === "Prioriteit") {
+      newValue = prompt(
+        "Kies uit prioriteit Laag, Midden, of Hoog",
+        oldValue || ""
+      );
+    }
+
 
     this.setState({
       sessions: sessions.map(s => {
@@ -629,13 +540,19 @@ class App extends Component {
   }
 
   render() {
+
     const {
       ready,
       foregroundLayerId,
       sessions,
       currentSessionId,
-      currentGeometryId
+      currentGeometryId,
+      isDrawing
     } = this.state;
+
+    const { maskFeature } = this.props.data;
+
+    const { sources, layers, mapLayers } = this.props;
 
     let inspectorContent = <div>Niets geselecteerd</div>;
     if (currentGeometryId && currentSessionId !== null) {
@@ -644,40 +561,26 @@ class App extends Component {
         f => f.id === currentGeometryId
       )[0];
 
-      // const squareMeters = feature ? area(feature) : 0;
-      // const sqm =
-      //   squareMeters > 50000
-      //     ? <span>
-      //         {Math.floor(squareMeters / 1000)} km<sup>2</sup>
-      //       </span>
-      //     : <span>
-      //         {Math.floor(squareMeters)} m<sup>2</sup>
-      //       </span>;
-
       const featureKeys = feature ? Object.keys(feature.properties) : [];
 
       const attributeTable = (
         <table className={styles.AttributeTable}>
           <tbody>
-            {/*<tr className={styles.TableRow}>*/}
-            {/*<td>Oppervlak</td>*/}
-            {/*<td>*/}
-            {/*{sqm}*/}
-            {/*</td>*/}
-            {/*</tr>*/}
             {featureKeys.map((fk, i) => {
               return (
                 <tr key={i} className={styles.TableRow}>
                   <td width="20%">
-                    {fk}
+                    <strong>{fk}</strong>
                   </td>
                   <td
                     style={{ cursor: "pointer" }}
-                    onDoubleClick={() =>
+                    onClick={() =>
                       this.handleUpdateAttributeValueForKeyInFeature(
                         fk,
-                        feature
-                      )}
+                        feature,
+                        feature.properties[fk]
+                      )
+                    }
                   >
                     {feature.properties[fk]}
                   </td>
@@ -702,6 +605,8 @@ class App extends Component {
       );
     }
 
+    const masker = maskFeature ? polyMask(maskFeature, bounds) : null;
+
     return (
       <div className={styles.App}>
         <Map
@@ -712,13 +617,17 @@ class App extends Component {
                 center: [
                   this.mapElement.state.map.getCenter().lng,
                   this.mapElement.state.map.getCenter().lat
-                ]
+                ],
+                pitch: this.mapElement.state.map.getPitch(),
+                bearing: this.mapElement.state.map.getBearing()
               },
               () => {
                 this.persistState();
               }
             );
           }}
+          pitch={this.state.pitch}
+          bearing={this.state.bearing}
           zoom={this.state.zoom}
           center={this.state.center}
           onStyleLoad={map => {
@@ -728,26 +637,12 @@ class App extends Component {
             this.mapElement = map;
           }}
           // eslint-disable-next-line
-          style="mapbox://styles/mapbox/dark-v9"
-          // eslint-disable-next-line
-          // style="mapbox://styles/mapbox/satellite-v9"
+          style="mapbox://styles/mapbox/streets-v9"
           containerStyle={{
             height: "100vh",
             width: "100vw"
           }}
         >
-          <GeoJSONLayer
-            data={masker}
-            linePaint={{
-              "line-color": "#000000",
-              "line-width": 1
-            }}
-            fillPaint={{
-              "fill-color": "#000000",
-              "fill-opacity": 0.99
-            }}
-          />
-
           {sources[foregroundLayerId]}
           {layers[foregroundLayerId]}
 
@@ -769,6 +664,19 @@ class App extends Component {
                 property: "min_height"
               },
               "fill-extrusion-opacity": 0.6
+            }}
+          />
+
+          <GeoJSONLayer
+            id="masker"
+            data={masker}
+            linePaint={{
+              "line-color": "#000000",
+              "line-width": 1
+            }}
+            fillPaint={{
+              "fill-color": "#000000",
+              "fill-opacity": 0.99
             }}
           />
 
@@ -815,9 +723,9 @@ class App extends Component {
                   ["!=", "mode", "static"]
                 ],
                 paint: {
-                  "fill-color": "#FFF",
+                  "fill-color": "#CCC",
                   "fill-outline-color": "#FFF",
-                  "fill-opacity": 0.1
+                  "fill-opacity": 0.5
                 }
               },
               // polygon outline stroke
@@ -837,7 +745,7 @@ class App extends Component {
                 paint: {
                   "line-color": "#FFF",
                   "line-dasharray": [0.2, 2],
-                  "line-width": 2
+                  "line-width": 5
                 }
               },
               // vertex point halos
@@ -852,7 +760,7 @@ class App extends Component {
                   ["!=", "mode", "static"]
                 ],
                 paint: {
-                  "circle-radius": 8,
+                  "circle-radius": 12,
                   "circle-color": "#FFF"
                 }
               },
@@ -965,90 +873,120 @@ class App extends Component {
           />
         </Map>
 
-        {ready
-          ? <div className={styles.DrawControls}>
-              <div className={styles.ButtonsWrapper}>
-                <button onClick={this.handleDrawPolygon}>
-                  <u>T</u>ekenen
-                </button>
-                <button onClick={this.handleDelete}>
-                  <i
-                    style={{
-                      lineHeight: 0,
-                      position: "relative",
-                      top: 8
-                    }}
-                    className="material-icons"
-                  >
-                    delete
-                  </i>
-                </button>
-                <button onClick={this.handlePublish}>Downloaden</button>
-              </div>
+        {ready ? (
+          <div className={styles.DrawControls}>
+            <div className={styles.ButtonsWrapper}>
+              <button
+                onClick={this.handleDrawPolygon}
+                style={{
+                  color: isDrawing ? "gray" : "black",
+                  backgroundColor: isDrawing ? "#d0d0d0" : "#ffffff"
+                }}
+              >
+                Tekenen
+              </button>
+              <button onClick={this.handleDelete}>
+                <i
+                  style={{
+                    lineHeight: 0,
+                    position: "relative",
+                    top: 8
+                  }}
+                  className="material-icons"
+                >
+                  delete
+                </i>
+              </button>
+              <button onClick={this.handlePublish}>Downloaden</button>
             </div>
-          : null}
+          </div>
+        ) : null}
 
-        {ready
-          ? <div className={styles.LayerControl}>
-              {hhnk_layers.map((layer, i) => {
+        {ready ? (
+          <div className={styles.SideBar}>
+            <div className={styles.Inspector}>
+              <div
+                style={{
+                  margin: "0px 10px 10px -5px",
+                  width: "100%",
+                  backgroundColor: "#000000",
+                  padding: 10,
+                  textTransform: "uppercase",
+                  fontSize: "0.75em"
+                }}
+              >
+                Attributen
+              </div>
+              {inspectorContent}
+            </div>
+
+            <div className={styles.Sessions}>
+              <div
+                style={{
+                  margin: "-5px 0px 10px -5px",
+                  width: "100%",
+                  backgroundColor: "#000000",
+                  padding: 10,
+                  textTransform: "uppercase",
+                  fontSize: "0.75em"
+                }}
+              >
+                Tekenlagen
+              </div>
+              {sessions
+                .slice()
+                .reverse()
+                .map((s, i) => {
+                  return (
+                    <div
+                      key={i}
+                      // onDoubleClick={() => this.handleRenameSession(s.id)}
+                      onClick={() => this.handleLoadSession(s.id)}
+                      className={`${
+                        s.id === currentSessionId ? styles.ActiveSession : null
+                      }`}
+                    >
+                      {s.title ? s.title : s.id}
+                    </div>
+                  );
+                })}
+            </div>
+            <div className={styles.MapLayers}>
+              <div
+                style={{
+                  margin: "0px 10px 10px -5px",
+                  width: "100%",
+                  backgroundColor: "#000000",
+                  padding: 10,
+                  textTransform: "uppercase",
+                  fontSize: "0.75em"
+                }}
+              >
+                Achtergrondkaarten
+              </div>
+              {mapLayers.map((layer, i) => {
                 return (
                   <div
                     key={i}
-                    className={`${styles.LayerControlButton} ${foregroundLayerId ===
-                    i
-                      ? styles.Active
-                      : null}`}
+                    className={`${styles.LayerControlButton} ${
+                      foregroundLayerId === i ? styles.Active : null
+                    }`}
                     onClick={() =>
                       this.setState(
                         {
                           foregroundLayerId: i
                         },
                         () => this.persistState()
-                      )}
-                  />
+                      )
+                    }
+                  >
+                    {layer.label}
+                  </div>
                 );
               })}
             </div>
-          : null}
-
-        {ready
-          ? <div className={styles.SideBar}>
-              <div className={styles.Inspector}>
-                {inspectorContent}
-              </div>
-              <div className={styles.AddRemoveSessions}>
-                <div className={styles.AddRemoveSessionsTitle}>Lagen</div>
-                <div
-                  onClick={this.handleNewSession}
-                  style={{ display: "none" }}
-                >
-                  +
-                </div>
-                <div
-                  onClick={this.handleRemoveSession}
-                  style={{ display: "none" }}
-                >
-                  -
-                </div>
-              </div>
-              <div className={styles.Sessions}>
-                {sessions.slice().reverse().map((s, i) => {
-                  return (
-                    <div
-                      key={i}
-                      // onDoubleClick={() => this.handleRenameSession(s.id)}
-                      onClick={() => this.handleLoadSession(s.id)}
-                      className={`${s.id === currentSessionId
-                        ? styles.ActiveSession
-                        : null}`}
-                    >
-                      {s.title ? s.title : s.id}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          : null}
+          </div>
+        ) : null}
       </div>
     );
   }

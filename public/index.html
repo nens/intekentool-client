@@ -21,25 +21,25 @@
     -->
     <!-- <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList"></script> -->
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet/1.2.0/leaflet.css"/>
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.2/leaflet.draw.css"/>
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.13/leaflet.draw.css"/>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
-      .map {
+      html, body {
+        margin: 0; padding: 0;
+        font-family: sans-serif;
+      }
+      html, body, .root, .root div, .leaflet-container {
         height: 100%;
         width: 100%;
-      }
-      svg {
         position: absolute;
-        width: 100%;
-        height: 100%;
       }
-      path {
-          fill: #e55e5e;
-          stroke: #e55e5e;
-          stroke-width: 2;
-          fill-opacity: 0.6;
+      .mapboxgl-ctrl-bottom-left {
+        margin-left: 250px;
       }
-
+/*      .leaflet-draw.leaflet-control {
+        display: none;
+      }*/
+      svg {height: auto, width: auto};
     </style>
     <title>Klimaatatlas | Intekentool</title>
   </head>
