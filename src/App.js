@@ -1,6 +1,6 @@
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import bboxPolygon from "@turf/bbox-polygon";
-import centroid from "@turf/centroid";
+// import centroid from "@turf/centroid";
 import difference from "@turf/difference";
 import DrawControl from "react-mapbox-gl-draw";
 import React, { Component } from "react";
@@ -35,7 +35,11 @@ class App extends Component {
   constructor(props) {
     super(props);
 
-    const center = centroid(this.props.data.maskFeature).geometry.coordinates || [5.2677, 52.1858];
+    // const center = centroid(this.props.data.maskFeature).geometry
+    //   .coordinates || [5.2677, 52.1858];
+
+    let center = [5.2677, 52.1858];
+
     this.state = {
       currentGeometryId: null,
       currentSessionId: 2,
@@ -60,7 +64,7 @@ class App extends Component {
         }
       ],
       center,
-      zoom: [9]
+      zoom: [7]
     };
     this.handleDelete = this.handleDelete.bind(this);
     this.handleDrawPolygon = this.handleDrawPolygon.bind(this);
@@ -483,26 +487,19 @@ class App extends Component {
         "Kies uit de volgende thema's: Hevige neerslag, Langdurige neerslag, Hitte, Droogte, Dijkdoorbraken of Overig",
         oldValue || ""
       );
-    }
-    else if (fk === "Nr") {
-      newValue = prompt(
-        "Geef een volgnummer op",
-        oldValue || ""
-      );
-    }
-    else if (fk === "Omschrijving") {
+    } else if (fk === "Nr") {
+      newValue = prompt("Geef een volgnummer op", oldValue || "");
+    } else if (fk === "Omschrijving") {
       newValue = prompt(
         "Geef een korte omschrijving van knelpunt, kans of oplossing (max. 100 tekens)",
         oldValue || ""
       );
-    }
-    else if (fk === "Prioriteit") {
+    } else if (fk === "Prioriteit") {
       newValue = prompt(
         "Kies uit prioriteit Laag, Midden, of Hoog",
         oldValue || ""
       );
     }
-
 
     this.setState({
       sessions: sessions.map(s => {
@@ -540,7 +537,6 @@ class App extends Component {
   }
 
   render() {
-
     const {
       ready,
       foregroundLayerId,
@@ -896,6 +892,30 @@ class App extends Component {
                 >
                   delete
                 </i>
+              </button>
+              <button
+                onClick={() => window.open("https://youtu.be/nkQdd_rYcMU", "_blank")}
+              >
+                Uitleg
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm("Weet u het zeker?")) {
+                    localStorage.removeItem("intekentool:state");
+                    window.location.reload();
+                  }
+                }}
+              >
+                <i
+                  style={{
+                    lineHeight: 0,
+                    position: "relative",
+                    top: 8
+                  }}
+                  className="material-icons"
+                >
+                  cancel
+                </i>&nbsp;Reset
               </button>
               <button onClick={this.handlePublish}>Downloaden</button>
             </div>
