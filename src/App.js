@@ -21,11 +21,12 @@ const Map = ReactMapboxGl({
     "pk.eyJ1IjoibmVsZW5zY2h1dXJtYW5zIiwiYSI6ImhkXzhTdXcifQ.3k2-KAxQdyl5bILh_FioCw"
 });
 
-// Bounds are intentionally globe-covering
-const bounds = [-163.125, 82.76537263027352, 192.3046875, -50.06419173665909];
 
-function polyMask(mask, bounds) {
-  const bboxPoly = bboxPolygon(bounds);
+
+
+function polyMask(mask) {
+  const bboxPoly = bboxPolygon([-163.125, 82.76537263027352, 192.3046875, -50.06419173665909]);
+  // ^^ Bounds are intentionally globe-covering
   return difference(bboxPoly, mask);
 }
 
@@ -601,8 +602,8 @@ class App extends Component {
       );
     }
 
-    const masker = maskFeature ? polyMask(maskFeature, bounds) : null;
-
+    const masker = maskFeature !== null ? polyMask(maskFeature) : null;  
+    
     return (
       <div className={styles.App}>
         <Map

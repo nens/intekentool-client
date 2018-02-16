@@ -6,14 +6,14 @@ import { Source, Layer } from "react-mapbox-gl";
 
 const mapId = window.location.hash.split("#");
 const data = window.data;
-const maskFeature = {
+const maskFeature = data.boundingPolygon ? {
 	type: "Feature",
 	properties: {},
 	geometry: {
 		type: "Polygon",
 		coordinates: [data.boundingPolygon]
 	}
-};
+} : null;
 const map = data.maps.filter(map => {
 	if (map.id === parseInt(mapId[1], 10)) {
 		return map;
