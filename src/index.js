@@ -6,14 +6,16 @@ import { Source, Layer } from "react-mapbox-gl";
 
 const mapId = window.location.hash.split("#");
 const data = window.data;
-const maskFeature = data.boundingPolygon ? {
-	type: "Feature",
-	properties: {},
-	geometry: {
-		type: "Polygon",
-		coordinates: [data.boundingPolygon]
-	}
-} : null;
+const maskFeature = data.boundingPolygon
+	? {
+			type: "Feature",
+			properties: {},
+			geometry: {
+				type: "Polygon",
+				coordinates: [data.boundingPolygon]
+			}
+		}
+	: null;
 const map = data.maps.filter(map => {
 	if (map.id === parseInt(mapId[1], 10)) {
 		return map;
@@ -23,11 +25,15 @@ const map = data.maps.filter(map => {
 const mapLayers =
 	map.length > 0
 		? map[0].mapLayers.map((m, i) => {
+			    let wmsUrl = m.url;
+				if(m.url.indexOf("demo.lizard.net") > -1) {
+					wmsUrl = `/proxy/${m.url}`;
+				}
 				return {
 					id: i,
 					label: m.name,
 					coverImage: map[0].coverImage,
-					wmsUrl: `${m.url}?service=WMS&request=GetMap&layers=${
+					wmsUrl: `${wmsUrl}?service=WMS&request=GetMap&layers=${
 						m.layerName
 					}&width=256&height=256&transparent=true&version=1.1.1&STYLES=${
 						m.styles
